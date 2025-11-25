@@ -271,7 +271,7 @@ class GazeMonitorWithNotification:
 
         gaze_x = gaze_vector[0] / (w // 2)
         gaze_y = gaze_vector[1] / (h // 2)
-        
+
         direction = self._classify_direction(gaze_x, gaze_y)
         is_focused = direction == "CENTER"
 
@@ -423,7 +423,7 @@ def main():
         ret, frame = cap.read()
         if not ret:
             break
-        
+
         annotated = monitor.monitor(frame)
         cv2.imshow('Gaze Monitor', annotated)
         
