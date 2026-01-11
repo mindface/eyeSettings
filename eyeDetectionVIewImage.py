@@ -1,7 +1,13 @@
 import cv2, time
 import mediapipe as mp
 import numpy as np
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
 import subprocess
+
+root = tk.Tk()
+root.withdraw() 
 
 class SystemNotifier:
 
@@ -33,174 +39,27 @@ class SystemNotifier:
         subprocess.run(['osascript', '-e', script])
 
 
-# class GazeDetector:
-#     def __init__(self):
-#         self.mp_face_mesh = mp.solutions.face_mesh
-#         self.face_mesh = self.mp_face_mesh.FaceMesh(
-#             max_num_faces=1,
-#             refine_landmarks=True,  # 瞳孔検出のため必要
-#             min_detection_confidence=0.5,
-#             min_tracking_confidence=0.5
-#         )
+def open_settings_window(path):
+    win = tk.Toplevel(root)
+    win.title("Settings")
+    win.geometry("300x200")
 
-#         # 虹彩のランドマークインデックス
-#         self.LEFT_IRIS = [474, 475, 476, 477]
-#         self.RIGHT_IRIS = [469, 470, 471, 472]
+    # 画像読み込み
+    img = Image.open(path)
+    img = img.resize((200, 150))  # サイズ調整（任意）
+    photo = ImageTk.PhotoImage(img)
 
-#         # 目の周囲のランドマーク
-#         self.LEFT_EYE = [33, 133, 160, 159, 158, 144, 145, 153]
-#         self.RIGHT_EYE = [362, 263, 387, 386, 385, 380, 374, 373]
+    # 画像表示（★参照保持が超重要）
+    img_label = ttk.Label(win, image=photo)
+    img_label.image = photo
+    img_label.pack(pady=10)
+
+    ttk.Label(win, text="Sensitivity").pack(pady=5)
+    ttk.Scale(win, from_=200, to=8000,
+              orient="horizontal").pack(fill="x", padx=20)
 
 
-#     def get_gaze_direction(self, frame):
-#         """視線方向を判定"""
-#         h, w = frame.shape[:2]
-#         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#         results = self.face_mesh.process(rgb_frame)
-        
-#         if not results.multi_face_landmarks:
-#             return None, frame
-
-#         face_landmarks = results.multi_face_landmarks[0]
-        
-#         # 左目の虹彩中心を計算
-#         left_iris_center = self._get_iris_center(
-#             face_landmarks, self.LEFT_IRIS, w, h
-#         )
-
-#         # 右目の虹彩中心を計算
-#         right_iris_center = self._get_iris_center(
-#             face_landmarks, self.RIGHT_IRIS, w, h
-#         )
-
-#         # 目の中心（眼窩の中心）を計算
-#         left_eye_center = self._get_eye_center(
-#             face_landmarks, self.LEFT_EYE, w, h
-#         )
-#         right_eye_center = self._get_eye_center(
-#             face_landmarks, self.RIGHT_EYE, w, h
-#         )
-        
-#         # 虹彩の相対位置から視線方向を判定
-#         left_gaze = self._calculate_gaze_ratio(left_iris_center, left_eye_center)
-#         right_gaze = self._calculate_gaze_ratio(right_iris_center, right_eye_center)
-        
-#         # 平均を取る
-#         gaze_ratio_x = (left_gaze[0] + right_gaze[0]) / 2
-#         gaze_ratio_y = (left_gaze[1] + right_gaze[1]) / 2
-
-#         # 視線方向を判定
-#         direction = self._classify_gaze_direction(gaze_ratio_x, gaze_ratio_y)
-
-#         # 可視化
-#         annotated_frame = self._draw_gaze(
-#             frame, left_iris_center, right_iris_center,
-#             left_eye_center, right_eye_center, direction
-#         )
-
-#         return {
-#             'direction': direction,
-#             'gaze_ratio_x': gaze_ratio_x,
-#             'gaze_ratio_y': gaze_ratio_y,
-#             'left_iris': left_iris_center,
-#             'right_iris': right_iris_center,
-#         }, annotated_frame
-
-#     def _get_iris_center(self, landmarks, indices, w, h):
-#         """虹彩の中心座標を計算"""
-#         points = []
-#         for idx in indices:
-#             point = landmarks.landmark[idx]
-#             points.append([point.x * w, point.y * h])
-
-#         points = np.array(points)
-#         center = np.mean(points, axis=0).astype(int)
-#         return center
-
-#     def _get_eye_center(self, landmarks, indices, w, h):
-#         """目の中心座標を計算"""
-#         points = []
-#         for idx in indices:
-#             point = landmarks.landmark[idx]
-#             points.append([point.x * w, point.y * h])
-
-#         points = np.array(points)
-#         center = np.mean(points, axis=0).astype(int)
-#         return center
-
-#     def _calculate_gaze_ratio(self, iris_center, eye_center):
-#         """虹彩の相対位置を計算（-1.0 ~ 1.0）"""
-#         # 水平方向のズレ
-#         dx = (iris_center[0] - eye_center[0]) / 30.0  # 正規化
-#         # 垂直方向のズレ
-#         dy = (iris_center[1] - eye_center[1]) / 20.0
-
-#         # クリップ
-#         dx = np.clip(dx, -1.0, 1.0)
-#         dy = np.clip(dy, -1.0, 1.0)
-
-#         return (dx, dy)
-
-#     def _classify_gaze_direction(self, ratio_x, ratio_y):
-#         """視線方向を分類"""
-#         threshold_x = 0.15
-#         threshold_y = 0.15
-
-#         # 水平方向
-#         if ratio_x < -threshold_x:
-#             horizontal = "LEFT"
-#         elif ratio_x > threshold_x:
-#             horizontal = "RIGHT"
-#         else:
-#             horizontal = "CENTER"
-
-#         # 垂直方向
-#         if ratio_y < -threshold_y:
-#             vertical = "UP"
-#         elif ratio_y > threshold_y:
-#             vertical = "DOWN"
-#         else:
-#             vertical = "CENTER"
-
-#         # 組み合わせ
-#         if horizontal == "CENTER" and vertical == "CENTER":
-#             return "FORWARD"
-#         elif horizontal == "CENTER":
-#             return vertical
-#         elif vertical == "CENTER":
-#             return horizontal
-#         else:
-#             return f"{vertical}_{horizontal}"
-
-#     def _draw_gaze(self, frame, left_iris, right_iris, 
-#                     left_eye, right_eye, direction):
-#         """視線の可視化"""
-#         # 虹彩を描画
-#         cv2.circle(frame, tuple(left_iris), 3, (0, 255, 0), -1)
-#         cv2.circle(frame, tuple(right_iris), 3, (0, 255, 0), -1)
-
-#         # 目の中心を描画
-#         cv2.circle(frame, tuple(left_eye), 2, (255, 0, 0), -1)
-#         cv2.circle(frame, tuple(right_eye), 2, (255, 0, 0), -1)
-
-#         # 視線ベクトルを描画
-#         scale = 50
-#         left_end = (
-#             left_iris[0] + int((left_iris[0] - left_eye[0]) * scale / 30),
-#             left_iris[1] + int((left_iris[1] - left_eye[1]) * scale / 20)
-#         )
-#         right_end = (
-#             right_iris[0] + int((right_iris[0] - right_eye[0]) * scale / 30),
-#             right_iris[1] + int((right_iris[1] - right_eye[1]) * scale / 20)
-#         )
-
-#         cv2.arrowedLine(frame, tuple(left_iris), left_end, (0, 255, 255), 2)
-#         cv2.arrowedLine(frame, tuple(right_iris), right_end, (0, 255, 255), 2)
-
-#         # 方向テキスト
-#         cv2.putText(frame, f"Gaze: {direction}", (10, 30),
-#                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-#         return frame
+    ttk.Button(win, text="Close", command=win.destroy).pack(pady=10)
 
 
 class GazeMonitorWithNotification:
@@ -242,6 +101,7 @@ class GazeMonitorWithNotification:
         print(f"通知までの時間: {distraction_time}秒")
         print(f"通知間隔: {cooldown_time}秒")
         print("================")
+
 
     def detect_gaze(self, frame):
         """視線検出"""
@@ -314,7 +174,7 @@ class GazeMonitorWithNotification:
             distracted_seconds = self.distracted_frames / self.fps
             print(f"is_focused: {is_focused} | 経過: {distracted_seconds:.2f}s")
             print(f"direction: {direction} | 経過: {self.last_direction}")
-            print(f"2@@distracted_frames: {self.distracted_frames} | distracted_threshold: {int(self.distracted_threshold)}")
+            print(f"distracted_frames: {self.distracted_frames} | distracted_threshold: {int(self.distracted_threshold)}")
 
             # 集中状態ならフレームを加算
             if is_focused:
@@ -328,7 +188,7 @@ class GazeMonitorWithNotification:
                 current_time = time.time()
                 if current_time - self.last_notification_time > self.notification_cooldown:
                     self._send_notification()
-                    print("¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥")
+                    open_settings_window("./images/imager.png")
                     self.last_notification_time = current_time
 
             # # 目線が同じである場合
@@ -367,7 +227,7 @@ class GazeMonitorWithNotification:
             return "LEFT" if x < 0 else "RIGHT"
         else:
             return "UP" if y < 0 else "DOWN"
-    
+
     def _draw_gaze(self, frame, left_iris, right_iris, eyes_center, direction, is_focused):
         """視線の描画"""
         annotated = frame.copy()
@@ -398,7 +258,7 @@ class GazeMonitorWithNotification:
             subtitle=f"{self.notification_count}回目の警告",
             sound=True
         )
-        
+
         # ★方法2: 音声通知（確実）
         # self.notifier.speak("目線がずらしてください！画面に視点をタスクスケジュールを再評価してください")
 
@@ -467,6 +327,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
+    root.mainloop()
+                    
