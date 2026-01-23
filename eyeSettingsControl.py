@@ -70,7 +70,7 @@ def move_cursor_from_gaze(eyes_center, frame, landmarks, settings):
         return
     # if abs(dx) < dead_zone_px_x and abs(dy) < dead_zone_px_y:
     #     return  # dead_zone内は移動しない
-    print("¥¥¥¥¥¥¥2")
+    print("¥¥¥¥¥¥¥")
 
     # sensitivity に応じて倍率をかける
     dx = int(dx * settings.sensitivity.get() / 600.0)
