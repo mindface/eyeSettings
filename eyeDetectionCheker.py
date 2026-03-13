@@ -538,7 +538,6 @@ def main():
         print(f"集中フレーム数: {monitor.focused_frames}")
         print(f"集中率: {focus_rate:.1f}%")
 
-
 if __name__ == "__main__":
     main()
     root.mainloop()
