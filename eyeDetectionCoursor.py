@@ -20,9 +20,9 @@ from Quartz.CoreGraphics import (
 # ----------------------------
 class Settings:
     def __init__(self):
-        self.sensitivity = tk.DoubleVar(value=600.0)  # 画面移動倍率
-        self.dead_zone = tk.DoubleVar(value=0.1)     # 中心停止範囲
-        self.fps = tk.IntVar(value=30)                # 処理FPS
+        self.sensitivity = tk.DoubleVar(value=2000.0)  # 画面移動倍率
+        self.dead_zone = tk.DoubleVar(value=0.0)     # 中心停止範囲
+        self.fps = tk.IntVar(value=300)                # 処理FPS
 
 # ----------------------------
 # カーソル移動関数
@@ -64,7 +64,7 @@ def move_cursor_from_gaze(eyes_center, frame, landmarks, settings):
 
     dead_zone = float(settings.dead_zone.get())  # 例: 0.1
     sensitivity = float(settings.sensitivity.get())  # 例: 700
-    
+
     # Dead zone（無視する範囲）
     if abs(gaze_x) < dead_zone and abs(gaze_y) < dead_zone:
         return

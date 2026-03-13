@@ -9,10 +9,15 @@ import subprocess
 root = tk.Tk()
 root.withdraw()
 
+LEFT_EYE_INNER = 133
+LEFT_EYE_OUTER = 33
+LEFT_EYE_UPPER = 159
+LEFT_EYE_LOWER = 145
+LEFT_IRIS = [474, 475, 476, 477]
+
 def on_scale_change(v):
     value = round(float(v), 2)  # 0.01刻み
     gaze_settings.threshold.set(value)
-    gaze_settings.threshold.trace_add("write", on_threshold_var_change)
     lbl1.config(text=f"{value:.2f}")
 
 # ===== 新規追加: グローバル設定クラス =====
@@ -30,6 +35,7 @@ class DataPatter:
         base_data = []
     def makeInfoer():
         base_and_recordgap = []
+
 
 class SystemNotifier:
 
@@ -61,14 +67,14 @@ class SystemNotifier:
         subprocess.run(['osascript', '-e', script])
 
 def on_threshold_change(v):
-    value = round(gaze_settings.threshold.get(), 2)
+    value = round(float(v), 2)
     gaze_settings.threshold.set(value)
     lbl1.config(text=f"{value:.2f}")
 
 def open_settings_window(path=None):
     """目線判定パラメータを調整する簡易UI。
 
-    呼び出しは引数なしでも動作します（`path` はオプションで画像表示用）。
+    呼び出しは引数なしでも動作します(`path` はオプションで画像表示用)。
     値はグローバル `gaze_settings` から取得・更新されます。
     """
     settings_win = tk.Toplevel(root)
@@ -76,57 +82,86 @@ def open_settings_window(path=None):
     settings_win.geometry("400x320")
     settings_win.resizable(False, False)
 
+    threshold_text = tk.StringVar(value=f"{gaze_settings.threshold.get():.2f}")
+    distraction_text = tk.StringVar(value=f"{gaze_settings.distraction_time.get():.1f}s")
+    cooldown_text = tk.StringVar(value=f"{gaze_settings.notification_cooldown.get()}s")
+
     ttk.Label(settings_win, text="🎯 目線判定設定", font=("Arial", 14, "bold")).pack(pady=8)
 
-    # 閾値スライダー
+    # ===== 閾値スライダー =====
     frame1 = ttk.Frame(settings_win)
     frame1.pack(fill="x", padx=12, pady=6)
+    threshold_text = tk.StringVar(
+        value=f"{gaze_settings.threshold.get():.2f}"
+    )
     ttk.Label(frame1, text="閾値 (0.0〜1.0):").pack(side="left")
+
+    def update_threshold(value):
+        snapped = int(round(float(value)))
+        real_value = snapped / 100  # ← 実際の閾値
+        gaze_settings.threshold.set(real_value)
+        threshold_text.set(f"{real_value:.2f}")
     
     scale1 = ttk.Scale(
         frame1,
-        from_=0.0,
-        to=1.0,
-        variable=gaze_settings.threshold,
+        from_=0,
+        to=100,
         orient="horizontal",
         length=220,
-        command=lambda v: lbl1.config(text=f"{float(v):.2f}")
+        command=update_threshold
     )
+    scale1.set(gaze_settings.threshold.get())
     scale1.pack(side="left", padx=8)
-    
-    lbl1 = ttk.Label(frame1, text=f"{gaze_settings.threshold.get():.2f}", width=6)
-    lbl1.pack(side="left")
-    
-    # スライダーを0.01刻みに設定
-    def snap_to_step(event):
-        value = scale1.get()
-        snapped = round(value * 100) / 100  # 0.01刻みに丸める
-        gaze_settings.threshold.set(snapped)
-        lbl1.config(text=f"{snapped:.2f}")
-    
-    scale1.bind("<ButtonRelease-1>", snap_to_step)
+
+    ttk.Label(frame1, textvariable=threshold_text, width=6).pack(side="left")
 
     # 通知までの時間スライダー
     frame2 = ttk.Frame(settings_win)
     frame2.pack(fill="x", padx=12, pady=6)
     ttk.Label(frame2, text="通知まで (秒):").pack(side="left")
-    scale2 = ttk.Scale(frame2, from_=1.0, to=30.0, variable=gaze_settings.distraction_time, orient="horizontal", length=220)
+    
+    def update_distraction_time(value):
+        snapped = round(float(value) * 10) / 10  # 0.1刻み
+        gaze_settings.distraction_time.set(snapped)
+        distraction_text.set(f"{snapped:.1f}s")
+    
+    scale2 = ttk.Scale(
+        frame2,
+        from_=1.0,
+        to=30.0,
+        orient="horizontal",
+        length=220,
+        command=update_distraction_time
+    )
+    scale2.set(gaze_settings.distraction_time.get())
     scale2.pack(side="left", padx=8)
-    lbl2 = ttk.Label(frame2, text=f"{gaze_settings.distraction_time.get():.1f}s", width=6)
-    lbl2.pack(side="left")
-    scale2.config(command=on_scale_change)
+    
+    ttk.Label(frame2, textvariable=distraction_text, width=6).pack(side="left")
 
     # 通知間隔スライダー
     frame3 = ttk.Frame(settings_win)
     frame3.pack(fill="x", padx=12, pady=6)
     ttk.Label(frame3, text="通知間隔 (秒):").pack(side="left")
-    scale3 = ttk.Scale(frame3, from_=5, to=120, variable=gaze_settings.notification_cooldown, orient="horizontal", length=220)
+    
+    def update_cooldown(value):
+        snapped = int(round(float(value)))  # 整数に丸める
+        gaze_settings.notification_cooldown.set(snapped)
+        cooldown_text.set(f"{snapped}s")
+    
+    scale3 = ttk.Scale(
+        frame3,
+        from_=5,
+        to=120,
+        orient="horizontal",
+        length=220,
+        command=update_cooldown
+    )
+    scale3.set(gaze_settings.notification_cooldown.get())
     scale3.pack(side="left", padx=8)
-    lbl3 = ttk.Label(frame3, text=f"{gaze_settings.notification_cooldown.get()}s", width=6)
-    lbl3.pack(side="left")
-    scale3.config(command=lambda v: lbl3.config(text=f"{int(float(v))}s"))
+    
+    ttk.Label(frame3, textvariable=cooldown_text, width=6).pack(side="left")
 
-    # 画像プレビュー（オプション）
+    # 画像プレビュー(オプション)
     if path:
         try:
             img = Image.open(path)
@@ -142,7 +177,6 @@ def open_settings_window(path=None):
     btn_frame.pack(fill="x", padx=12, pady=10)
 
     def on_save():
-        # 値は既に tk.Variable にバインドされているのでここではログ表示のみ
         print("設定保存:",
               f"threshold={gaze_settings.threshold.get():.2f}",
               f"distraction_time={gaze_settings.distraction_time.get():.1f}",
@@ -151,7 +185,6 @@ def open_settings_window(path=None):
 
     ttk.Button(btn_frame, text="保存して閉じる", command=on_save).pack(side="right", padx=6)
     ttk.Button(btn_frame, text="キャンセル", command=settings_win.destroy).pack(side="right")
-
 
 class GazeMonitorWithNotification:
     def __init__(self, 
@@ -191,6 +224,64 @@ class GazeMonitorWithNotification:
         print(f"通知間隔: {cooldown_time}秒")
         print("================")
 
+    def compute_eye_relative_gaze(self, landmarks, iris_ids,
+                                eye_inner_id, eye_outer_id,
+                                eye_upper_id, eye_lower_id,
+                                w, h):
+        """
+        単眼の眼球内相対視線を計算
+        戻り値: (offset_x, offset_y)
+        """
+
+        # ランドマーク座標取得
+        eye_inner = np.array([landmarks[eye_inner_id].x * w,
+                            landmarks[eye_inner_id].y * h])
+        eye_outer = np.array([landmarks[eye_outer_id].x * w,
+                            landmarks[eye_outer_id].y * h])
+        eye_upper = np.array([landmarks[eye_upper_id].x * w,
+                            landmarks[eye_upper_id].y * h])
+        eye_lower = np.array([landmarks[eye_lower_id].x * w,
+                            landmarks[eye_lower_id].y * h])
+
+        # 虹彩中心
+        iris_center = np.mean([
+            [landmarks[i].x * w, landmarks[i].y * h]
+            for i in iris_ids
+        ], axis=0)
+
+        # 眼球中心（原点）
+        eye_center = (eye_inner + eye_outer) / 2
+
+        # 眼球内軸
+        eye_x_axis = eye_outer - eye_inner
+        eye_x_axis /= np.linalg.norm(eye_x_axis)
+
+        eye_y_axis = eye_lower - eye_upper
+        eye_y_axis /= np.linalg.norm(eye_y_axis)
+
+        # 差分（ピクセル）
+        diff = iris_center - eye_center
+
+        # 👇 正規化は「目の幅」で1回だけ
+        eye_width = np.linalg.norm(eye_outer - eye_inner)
+        eye_height = np.linalg.norm(eye_lower - eye_upper)
+
+        offset_x = np.dot(diff, eye_x_axis) / eye_width
+        offset_y = np.dot(diff, eye_y_axis) / eye_height
+
+        return offset_x, offset_y, iris_center, eye_center
+
+    def _classify_direction(self, x, y):
+        """視線方向を分類（相対位置ベース）"""
+        threshold = gaze_settings.threshold.get()
+
+        if abs(x) < threshold and abs(y) < threshold:
+            return "CENTER"
+        elif abs(x) > abs(y):
+            return "RIGHT" if x > 0 else "LEFT"  # 正が右、負が左
+        else:
+            return "DOWN" if y > 0 else "UP"     # 正が下、負が上
+
     def update_settings_from_ui(self):
         """UI から動的に設定を更新"""
         self.gaze_threshold = gaze_settings.threshold.get()
@@ -199,7 +290,7 @@ class GazeMonitorWithNotification:
         self.distracted_threshold = int(self.distraction_time * self.fps)
 
     def detect_gaze(self, frame):
-        """視線検出"""
+        """視線検出（目の枠内での瞳孔の相対位置ベース）"""
         h, w = frame.shape[:2]
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.face_mesh.process(rgb)
@@ -209,36 +300,87 @@ class GazeMonitorWithNotification:
 
         landmarks = results.multi_face_landmarks[0].landmark
 
+        # 左目の枠と瞳孔
+        LEFT_EYE_OUTER = 263  # 左目外側
+        LEFT_EYE_INNER = 362  # 左目内側
+        LEFT_EYE_TOP = 386    # 左目上
+        LEFT_EYE_BOTTOM = 374 # 左目下
+        
+        # 右目の枠と瞳孔
+        RIGHT_EYE_OUTER = 33  # 右目外側
+        RIGHT_EYE_INNER = 133 # 右目内側
+        RIGHT_EYE_TOP = 159   # 右目上
+        RIGHT_EYE_BOTTOM = 145 # 右目下
+
         # 虹彩中心を取得
         left_iris = np.mean([
             [landmarks[i].x * w, landmarks[i].y * h] 
             for i in self.LEFT_IRIS
-        ], axis=0).astype(int)
+        ], axis=0)
 
         right_iris = np.mean([
             [landmarks[i].x * w, landmarks[i].y * h] 
             for i in self.RIGHT_IRIS
-        ], axis=0).astype(int)
+        ], axis=0)
 
-        eyes_center = ((left_iris + right_iris) / 2).astype(int)
-        screen_center = np.array([w // 2, h // 2])
-        gaze_vector = eyes_center - screen_center
+        # 左目の枠を取得
+        left_eye_outer = np.array([landmarks[LEFT_EYE_OUTER].x * w, landmarks[LEFT_EYE_OUTER].y * h])
+        left_eye_inner = np.array([landmarks[LEFT_EYE_INNER].x * w, landmarks[LEFT_EYE_INNER].y * h])
+        left_eye_top = np.array([landmarks[LEFT_EYE_TOP].x * w, landmarks[LEFT_EYE_TOP].y * h])
+        left_eye_bottom = np.array([landmarks[LEFT_EYE_BOTTOM].x * w, landmarks[LEFT_EYE_BOTTOM].y * h])
 
-        gaze_x = gaze_vector[0] / (w // 2)
-        gaze_y = gaze_vector[1] / (h // 2)
+        # 右目の枠を取得
+        right_eye_outer = np.array([landmarks[RIGHT_EYE_OUTER].x * w, landmarks[RIGHT_EYE_OUTER].y * h])
+        right_eye_inner = np.array([landmarks[RIGHT_EYE_INNER].x * w, landmarks[RIGHT_EYE_INNER].y * h])
+        right_eye_top = np.array([landmarks[RIGHT_EYE_TOP].x * w, landmarks[RIGHT_EYE_TOP].y * h])
+        right_eye_bottom = np.array([landmarks[RIGHT_EYE_BOTTOM].x * w, landmarks[RIGHT_EYE_BOTTOM].y * h])
+
+        # 左目の幅と高さを計算
+        left_eye_width = np.linalg.norm(left_eye_outer - left_eye_inner)
+        left_eye_height = np.linalg.norm(left_eye_top - left_eye_bottom)
+        
+        # 右目の幅と高さを計算
+        right_eye_width = np.linalg.norm(right_eye_outer - right_eye_inner)
+        right_eye_height = np.linalg.norm(right_eye_top - right_eye_bottom)
+
+        # 左目の中心を計算
+        left_eye_center = (left_eye_outer + left_eye_inner) / 2
+        
+        # 右目の中心を計算
+        right_eye_center = (right_eye_outer + right_eye_inner) / 2
+
+        # 瞳孔の相対位置を計算（-1.0 ~ 1.0の範囲に正規化）
+        # 左目: 左側が負、右側が正
+        left_gaze_x = (left_iris[0] - left_eye_center[0]) / (left_eye_width / 2) if left_eye_width > 0 else 0
+        left_gaze_y = (left_iris[1] - left_eye_center[1]) / (left_eye_height / 2) if left_eye_height > 0 else 0
+        
+        # 右目: 左側が負、右側が正
+        right_gaze_x = (right_iris[0] - right_eye_center[0]) / (right_eye_width / 2) if right_eye_width > 0 else 0
+        right_gaze_y = (right_iris[1] - right_eye_center[1]) / (right_eye_height / 2) if right_eye_height > 0 else 0
+
+        # 両目の平均を取る
+        gaze_x = (left_gaze_x + right_gaze_x) / 2
+        gaze_y = (left_gaze_y + right_gaze_y) / 2
 
         direction = self._classify_direction(gaze_x, gaze_y)
         is_focused = direction == "CENTER"
 
-        # 描画
-        annotated = self._draw_gaze(frame, left_iris, right_iris, 
-                                     eyes_center, direction, is_focused)
+        # 描画（デバッグ用に目の枠も表示）
+        annotated = self._draw_gaze(frame, left_iris.astype(int), right_iris.astype(int), 
+                                    ((left_iris + right_iris) / 2).astype(int), 
+                                    direction, is_focused,
+                                    left_eye_outer.astype(int), left_eye_inner.astype(int),
+                                    right_eye_outer.astype(int), right_eye_inner.astype(int))
 
         return {
             'direction': direction,
             'is_focused': is_focused,
             'gaze_x': gaze_x,
             'gaze_y': gaze_y,
+            'left_gaze_x': left_gaze_x,
+            'left_gaze_y': left_gaze_y,
+            'right_gaze_x': right_gaze_x,
+            'right_gaze_y': right_gaze_y,
         }, annotated
 
     def monitor(self, frame):
@@ -305,9 +447,16 @@ class GazeMonitorWithNotification:
         else:
             return "UP" if y < 0 else "DOWN"
 
-    def _draw_gaze(self, frame, left_iris, right_iris, eyes_center, direction, is_focused):
+    def _draw_gaze(self, frame, left_iris, right_iris, eyes_center, direction, is_focused,
+                left_outer=None, left_inner=None, right_outer=None, right_inner=None):
         """視線の描画"""
         annotated = frame.copy()
+
+        # 目の枠を描画（デバッグ用）
+        if left_outer is not None and left_inner is not None:
+            cv2.line(annotated, tuple(left_outer), tuple(left_inner), (255, 255, 0), 1)
+        if right_outer is not None and right_inner is not None:
+            cv2.line(annotated, tuple(right_outer), tuple(right_inner), (255, 255, 0), 1)
 
         # 虹彩
         cv2.circle(annotated, tuple(left_iris), 3, (0, 255, 0), -1)
@@ -320,7 +469,7 @@ class GazeMonitorWithNotification:
         # ステータス表示
         status = "FOCUSED" if is_focused else f"DISTRACTED ({direction})"
         cv2.putText(annotated, f"Status: {status}", (10, 30),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
         return annotated
 
@@ -389,7 +538,7 @@ def main():
         print(f"集中フレーム数: {monitor.focused_frames}")
         print(f"集中率: {focus_rate:.1f}%")
 
-
 if __name__ == "__main__":
     main()
     root.mainloop()
+                    

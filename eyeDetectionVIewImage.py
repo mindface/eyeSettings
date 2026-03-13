@@ -7,29 +7,7 @@ from PIL import Image, ImageTk
 import subprocess
 
 root = tk.Tk()
-root.withdraw()
-
-def on_scale_change(v):
-    value = round(float(v), 2)  # 0.01刻み
-    gaze_settings.threshold.set(value)
-    gaze_settings.threshold.trace_add("write", on_threshold_var_change)
-    lbl1.config(text=f"{value:.2f}")
-
-# ===== 新規追加: グローバル設定クラス =====
-class GazeSettings:
-    """目線判定の設定を管理"""
-    def __init__(self):
-        self.threshold = tk.DoubleVar(value=0.35)  # 目線ズレ判定の閾値
-        self.distraction_time = tk.DoubleVar(value=5.0)  # 通知までの秒数
-        self.notification_cooldown = tk.IntVar(value=10)  # 通知間隔（秒）
-
-gaze_settings = GazeSettings()
-
-class DataPatter:
-    def __init__(self):
-        base_data = []
-    def makeInfoer():
-        base_and_recordgap = []
+root.withdraw() 
 
 class SystemNotifier:
 
@@ -61,103 +39,38 @@ class SystemNotifier:
         subprocess.run(['osascript', '-e', script])
 
 def on_threshold_change(v):
-    value = round(gaze_settings.threshold.get(), 2)
+    value = round(float(v), 2)
     gaze_settings.threshold.set(value)
     lbl1.config(text=f"{value:.2f}")
 
-def open_settings_window(path=None):
-    """目線判定パラメータを調整する簡易UI。
+def open_settings_window(path):
+    win = tk.Toplevel(root)
+    win.title("Settings")
+    win.geometry("300x200")
 
-    呼び出しは引数なしでも動作します（`path` はオプションで画像表示用）。
-    値はグローバル `gaze_settings` から取得・更新されます。
-    """
-    settings_win = tk.Toplevel(root)
-    settings_win.title("Gaze Monitor Settings")
-    settings_win.geometry("400x320")
-    settings_win.resizable(False, False)
+    # 画像読み込み
+    img = Image.open(path)
+    img = img.resize((200, 150))  # サイズ調整（任意）
+    photo = ImageTk.PhotoImage(img)
 
-    ttk.Label(settings_win, text="🎯 目線判定設定", font=("Arial", 14, "bold")).pack(pady=8)
+    # 画像表示（★参照保持が超重要）
+    img_label = ttk.Label(win, image=photo)
+    img_label.image = photo
+    img_label.pack(pady=10)
 
-    # 閾値スライダー
-    frame1 = ttk.Frame(settings_win)
-    frame1.pack(fill="x", padx=12, pady=6)
-    ttk.Label(frame1, text="閾値 (0.0〜1.0):").pack(side="left")
-    
-    scale1 = ttk.Scale(
-        frame1,
-        from_=0.0,
-        to=1.0,
-        variable=gaze_settings.threshold,
-        orient="horizontal",
-        length=220,
-        command=lambda v: lbl1.config(text=f"{float(v):.2f}")
-    )
-    scale1.pack(side="left", padx=8)
-    
-    lbl1 = ttk.Label(frame1, text=f"{gaze_settings.threshold.get():.2f}", width=6)
-    lbl1.pack(side="left")
-    
-    # スライダーを0.01刻みに設定
-    def snap_to_step(event):
-        value = scale1.get()
-        snapped = round(value * 100) / 100  # 0.01刻みに丸める
-        gaze_settings.threshold.set(snapped)
-        lbl1.config(text=f"{snapped:.2f}")
-    
-    scale1.bind("<ButtonRelease-1>", snap_to_step)
+    ttk.Label(win, text="Sensitivity").pack(pady=5)
+    ttk.Scale(win, from_=200, to=8000,
+              orient="horizontal").pack(fill="x", padx=20)
 
-    # 通知までの時間スライダー
-    frame2 = ttk.Frame(settings_win)
-    frame2.pack(fill="x", padx=12, pady=6)
-    ttk.Label(frame2, text="通知まで (秒):").pack(side="left")
-    scale2 = ttk.Scale(frame2, from_=1.0, to=30.0, variable=gaze_settings.distraction_time, orient="horizontal", length=220)
-    scale2.pack(side="left", padx=8)
-    lbl2 = ttk.Label(frame2, text=f"{gaze_settings.distraction_time.get():.1f}s", width=6)
-    lbl2.pack(side="left")
-    scale2.config(command=on_scale_change)
 
-    # 通知間隔スライダー
-    frame3 = ttk.Frame(settings_win)
-    frame3.pack(fill="x", padx=12, pady=6)
-    ttk.Label(frame3, text="通知間隔 (秒):").pack(side="left")
-    scale3 = ttk.Scale(frame3, from_=5, to=120, variable=gaze_settings.notification_cooldown, orient="horizontal", length=220)
-    scale3.pack(side="left", padx=8)
-    lbl3 = ttk.Label(frame3, text=f"{gaze_settings.notification_cooldown.get()}s", width=6)
-    lbl3.pack(side="left")
-    scale3.config(command=lambda v: lbl3.config(text=f"{int(float(v))}s"))
-
-    # 画像プレビュー（オプション）
-    if path:
-        try:
-            img = Image.open(path)
-            img = img.resize((200, 120))
-            photo = ImageTk.PhotoImage(img)
-            img_label = ttk.Label(settings_win, image=photo)
-            img_label.image = photo
-            img_label.pack(pady=6)
-        except Exception:
-            pass
-
-    btn_frame = ttk.Frame(settings_win)
-    btn_frame.pack(fill="x", padx=12, pady=10)
-
-    def on_save():
-        # 値は既に tk.Variable にバインドされているのでここではログ表示のみ
-        print("設定保存:",
-              f"threshold={gaze_settings.threshold.get():.2f}",
-              f"distraction_time={gaze_settings.distraction_time.get():.1f}",
-              f"cooldown={gaze_settings.notification_cooldown.get()}")
-        settings_win.destroy()
-
-    ttk.Button(btn_frame, text="保存して閉じる", command=on_save).pack(side="right", padx=6)
-    ttk.Button(btn_frame, text="キャンセル", command=settings_win.destroy).pack(side="right")
+    ttk.Button(win, text="Close", command=win.destroy).pack(pady=10)
 
 
 class GazeMonitorWithNotification:
     def __init__(self, 
-                 gaze_threshold=0.35,
-                 distraction_time=5.0,
-                 cooldown_time=10.0,
+                 gaze_threshold=0.2,  # 目線ずれの閾値（調整可能）
+                 distraction_time=5.0,  # 何秒同じであれば通知するか
+                 cooldown_time=60.0,    # 通知間隔
                  fps=30):
 
         self.mp_face_mesh = mp.solutions.face_mesh
@@ -176,9 +89,11 @@ class GazeMonitorWithNotification:
         # 目線ずれの監視設定
         self.distracted_frames = 0
         self.last_notification_time = 0
-        self.notification_cooldown = cooldown_time
+        self.notification_cooldown = 10  # 10秒のクールダウン
         self.notification_count = 0
         # 状態管理
+        self.distracted_frames = 0
+        self.last_notification_time = 0
         self.last_direction = "CENTER"
         # 統計情報
         self.total_frames = 0
@@ -190,13 +105,6 @@ class GazeMonitorWithNotification:
         print(f"通知までの時間: {distraction_time}秒")
         print(f"通知間隔: {cooldown_time}秒")
         print("================")
-
-    def update_settings_from_ui(self):
-        """UI から動的に設定を更新"""
-        self.gaze_threshold = gaze_settings.threshold.get()
-        self.distraction_time = gaze_settings.distraction_time.get()
-        self.notification_cooldown = gaze_settings.notification_cooldown.get()
-        self.distracted_threshold = int(self.distraction_time * self.fps)
 
     def detect_gaze(self, frame):
         """視線検出"""
@@ -243,15 +151,17 @@ class GazeMonitorWithNotification:
 
     def monitor(self, frame):
         """目線監視とアクション実行"""
-        # UI から設定を更新
-        self.update_settings_from_ui()
-
         gaze_info, annotated = self.detect_gaze(frame)
 
         if gaze_info:
             self.total_frames += 1
             direction = gaze_info['direction']
             is_focused = gaze_info['is_focused']
+            # if gaze_info['is_focused']:
+            #     self.focused_frames += 1
+            #     self.distracted_frames = 0  # リセット
+            # else:
+            #     self.distracted_frames += 1
 
             distracted_seconds = self.distracted_frames / self.fps
 
@@ -265,7 +175,7 @@ class GazeMonitorWithNotification:
                 self.distracted_frames += 1
 
             distracted_seconds = self.distracted_frames / self.fps
-            print(f"is_focused: {is_focused} | 経過: {distracted_seconds:.2f}s | 閾値: {self.gaze_threshold:.2f}")
+            print(f"is_focused: {is_focused} | 経過: {distracted_seconds:.2f}s")
             print(f"direction: {direction} | 経過: {self.last_direction}")
             print(f"distracted_frames: {self.distracted_frames} | distracted_threshold: {int(self.distracted_threshold)}")
 
@@ -273,7 +183,7 @@ class GazeMonitorWithNotification:
             if is_focused:
                 self.focused_frames += 1
 
-            # 同じ方向が一定時間続いたら通知（ただし設定値に基づいて）
+            # 同じ方向が一定時間続いたら通知（ただし10分に1回まで）
             if (is_focused == True and 
                 int(self.distracted_frames) >= int(self.distracted_threshold)):
                 print(f": {self.distracted_frames} | self.distracted_threshold: {self.distracted_threshold}")
@@ -281,22 +191,38 @@ class GazeMonitorWithNotification:
                 current_time = time.time()
                 if current_time - self.last_notification_time > self.notification_cooldown:
                     self._send_notification()
+                    open_settings_window("./images/imager.png")
                     self.last_notification_time = current_time
+
+            # # 目線が同じである場合
+            # if self.distracted_frames >= self.distracted_threshold:
+            #     current_time = time.time()
+            #     print(f"2@@distracted_threshold: {self.distracted_threshold}")
+            #     print(f"2@@distracted_frames: {self.distracted_frames}")
+
+            #     # クールダウン期間が経過していれば通知
+            #     if current_time - self.last_notification_time > self.notification_cooldown:
+            #         print(f"2@@目線ずれフレーム数: {self.distracted_frames}")
+            #         self._send_notification()
+            #         self.last_notification_time = current_time
+            #         self.distracted_frames = 0  # リセット
 
             # 統計情報を表示
             focus_rate = (self.focused_frames / self.total_frames * 100) if self.total_frames > 0 else 0
             cv2.putText(annotated, f"Focus Rate: {focus_rate:.1f}%", 
                        (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-            # 現在の設定を表示
-            cv2.putText(annotated, f"Threshold: {self.gaze_threshold:.2f}", 
-                       (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+            # 警告表示
+            # if self.distracted_frames > 30:
+            #     remaining = self.distracted_threshold - self.distracted_frames
+            #     cv2.putText(annotated, f"Warning in: {remaining // 30}s", 
+            #                (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         return annotated
 
     def _classify_direction(self, x, y):
         """視線方向を分類"""
-        threshold = gaze_settings.threshold.get()
+        threshold = 0.35
 
         if abs(x) < threshold and abs(y) < threshold:
             return "CENTER"
@@ -351,10 +277,9 @@ def main():
     cap = cv2.VideoCapture(0)
 
     print("=== 目線モニター開始 ===")
-    print("'s'キーで設定ウィンドウを開く")
+    print("目線が3秒以上ずれると通知が表示されます")
     print("'q'キーで終了")
     print()
-    open_settings_window()
 
     while True:
         ret, frame = cap.read()
@@ -363,20 +288,9 @@ def main():
 
         annotated = monitor.monitor(frame)
         cv2.imshow('Gaze Monitor', annotated)
-
-        # Tkinter のウィンドウイベントを処理して、
-        # `open_settings_window()` で作成した Toplevel が応答するようにする
-        try:
-            root.update()
-        except tk.TclError:
-            # Tk が既に破棄されている等のエラーは無視
-            pass
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
+        
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        elif key == ord('s'):
-            open_settings_window()
 
     cap.release()
     cv2.destroyAllWindows()
@@ -389,7 +303,32 @@ def main():
         print(f"集中フレーム数: {monitor.focused_frames}")
         print(f"集中率: {focus_rate:.1f}%")
 
+    # detector = GazeDetector()
+    # cap = cv2.VideoCapture(0)
+    # print("Press 'q' to quit.")
+
+    # while cap.isOpened():
+    #     ret, frame = cap.read()
+    #     if not ret:
+    #         break
+        
+    #     gaze_info, annotated_frame = detector.get_gaze_direction(frame)
+        
+    #     if gaze_info:
+    #         print(f"Direction: {gaze_info['direction']}, "
+    #               f"Ratio X: {gaze_info['gaze_ratio_x']:.2f}, "
+    #               f"Ratio Y: {gaze_info['gaze_ratio_y']:.2f}")
+        
+    #     cv2.imshow('Gaze Detection', annotated_frame)
+        
+    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #         break
+    
+    # cap.release()
+    # cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
     root.mainloop()
+                    

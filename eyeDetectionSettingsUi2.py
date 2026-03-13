@@ -12,7 +12,6 @@ root.withdraw()
 def on_scale_change(v):
     value = round(float(v), 2)  # 0.01刻み
     gaze_settings.threshold.set(value)
-    gaze_settings.threshold.trace_add("write", on_threshold_var_change)
     lbl1.config(text=f"{value:.2f}")
 
 # ===== 新規追加: グローバル設定クラス =====
@@ -60,10 +59,6 @@ class SystemNotifier:
         script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon caution'
         subprocess.run(['osascript', '-e', script])
 
-def on_threshold_change(v):
-    value = round(gaze_settings.threshold.get(), 2)
-    gaze_settings.threshold.set(value)
-    lbl1.config(text=f"{value:.2f}")
 
 def open_settings_window(path=None):
     """目線判定パラメータを調整する簡易UI。
@@ -82,29 +77,11 @@ def open_settings_window(path=None):
     frame1 = ttk.Frame(settings_win)
     frame1.pack(fill="x", padx=12, pady=6)
     ttk.Label(frame1, text="閾値 (0.0〜1.0):").pack(side="left")
-    
-    scale1 = ttk.Scale(
-        frame1,
-        from_=0.0,
-        to=1.0,
-        variable=gaze_settings.threshold,
-        orient="horizontal",
-        length=220,
-        command=lambda v: lbl1.config(text=f"{float(v):.2f}")
-    )
+    scale1 = ttk.Scale(frame1, from_=0.0, to=1.0, variable=gaze_settings.threshold, orient="horizontal", length=220)
     scale1.pack(side="left", padx=8)
-    
     lbl1 = ttk.Label(frame1, text=f"{gaze_settings.threshold.get():.2f}", width=6)
     lbl1.pack(side="left")
-    
-    # スライダーを0.01刻みに設定
-    def snap_to_step(event):
-        value = scale1.get()
-        snapped = round(value * 100) / 100  # 0.01刻みに丸める
-        gaze_settings.threshold.set(snapped)
-        lbl1.config(text=f"{snapped:.2f}")
-    
-    scale1.bind("<ButtonRelease-1>", snap_to_step)
+    scale1.config(command=lambda v: lbl1.config(text=f"{float(v):.2f}"))
 
     # 通知までの時間スライダー
     frame2 = ttk.Frame(settings_win)
@@ -152,6 +129,7 @@ def open_settings_window(path=None):
     ttk.Button(btn_frame, text="保存して閉じる", command=on_save).pack(side="right", padx=6)
     ttk.Button(btn_frame, text="キャンセル", command=settings_win.destroy).pack(side="right")
 
+    
 
 class GazeMonitorWithNotification:
     def __init__(self, 
@@ -393,3 +371,4 @@ def main():
 if __name__ == "__main__":
     main()
     root.mainloop()
+                    
